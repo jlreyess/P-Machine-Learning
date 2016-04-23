@@ -1,0 +1,159 @@
+
+
+
+---
+title: "Prediction Assignment"
+output: html_document
+---
+
+
+The objective of this Prediction Assignment is to predict type of exercise by other key variables taken by accelerometers in different body parts.
+
+This key measures, will help us to predict what kind of exercise you are doing.
+
+In this Assignment I´m using the libraries:
+
+scatterplot3d,
+caret,
+randomForest,
+AppliedPredictiveModeling
+
+```{r   include=FALSE  }
+
+library(ggplot2)
+library(lattice)
+library(nnet)
+library(AppliedPredictiveModeling)
+library(caret)
+library(scatterplot3d)
+library(randomForest)
+
+```
+
+
+The first step is to obtain our data, 
+
+```{r}
+
+ORIGINAL_DATA <- read.csv("pml-training.CSV", stringsAsFactors = FALSE)
+
+```
+
+
+Then we are constructing 2 data sets, in order to use the first one as a training data set, and the other as a testing data set.
+
+```{r}
+
+adData = data.frame(ORIGINAL_DATA)
+trainsplit = createDataPartition(ORIGINAL_DATA$classe,p=0.5,list=FALSE)
+training = adData[trainsplit,]
+testing = adData[-trainsplit,]
+
+```
+
+
+In order to determine the relevant variables, first we need to clean our data set.  With the function str, we can list our variables and exclude variables with NA, or without values or data.  This help us to reduce the amount of variables.
+
+```{r}
+str(training, list.len=ncol(training))
+```
+
+
+The next step that I use in this research is to make 3D plots, in order to understand the variables that have higher impact in prediction.
+
+The library scatterplot3d, help us to construct 3d plots.  The first step is to create a variable that assign different colors by Classe.
+
+```{r}
+training$pcolor[training$classe=="A"] <- "red"
+training$pcolor[training$classe=="B"] <- "blue"
+training$pcolor[training$classe=="C"] <- "darkgreen"
+training$pcolor[training$classe=="D"] <- "yellow"
+training$pcolor[training$classe=="E"] <- "black"
+
+```
+
+
+In the next plot, we can see that variables:
+
+raw_timestamp_part_1,
+pitch_forearm,
+roll_belt
+
+are relevant to our research, because separates our types of exercises, and we can discriminate each category.
+
+```{r}
+f <- scatterplot3d(training$raw_timestamp_part_1, training$pitch_forearm, training$roll_belt, color = training$pcolor)
+legend("topleft", inset=0.1, cex=.6,    c("A", "B", "C", "D", "E"), fill=c("red", "blue", "darkgreen", "yellow", "black"))
+```
+
+
+In the second plot, we can see that 
+num_window,
+magnet_dumbbell_z and
+yaw_belt
+
+are relevant too for the research, because we can observe how the data is fragmented by classe category.
+
+
+```{r}
+g <- scatterplot3d(training$yaw_belt, training$magnet_dumbbell_z, training$num_window, color = training$pcolor)
+legend("topleft", inset=0.1, cex=.6,    c("A", "B", "C", "D", "E"), fill=c("red", "blue", "darkgreen", "yellow", "black"))
+```
+
+
+With this kind of plots I choose the variables of my final model:
+
+raw_timestamp_part_1,
+classe,
+num_window + roll_belt,
+pitch_forearm,
+yaw_belt,
+magnet_dumbbell_z,
+accel_dumbbell_x,
+yaw_arm
+
+The method chosen to construct prediction is Random Forest
+
+```{r}
+modFit <- train(as.factor(classe) ~ raw_timestamp_part_1 + classe + num_window + roll_belt + pitch_forearm + yaw_belt + magnet_dumbbell_z + accel_dumbbell_x + yaw_arm, 
+                method = "rf", data = training[c("raw_timestamp_part_1", "classe", "num_window", "roll_belt", "pitch_forearm", "yaw_belt", "magnet_dumbbell_z", "accel_dumbbell_x", "yaw_arm")])
+
+```
+
+
+
+
+In the confusion Matrix of our training data set we can observe that each Classe has the right prediction, and we dont have misclassifications.  The next step is to predict Classes with the Test data set, and construct a confusion matrix.
+
+```{r}
+modFit$finalModel
+
+
+```
+
+
+
+
+```{r}
+predictions <- predict(modFit,newdata= testing)
+
+
+```
+
+Confusion Matrix of the test data sets confirms that the Model is helping us to group our data set correctly.
+
+```{r}
+confusionMatrix(predictions,testing$classe)
+```
+
+The accuracy of the model is 95%
+
+And the last step is to analyze the variable importance,
+
+```{r}
+varImp(modFit)
+```
+
+
+
+
